@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import Avatar from '@/components/common/Avatar.vue'
 import { formatFileSize } from '../composables/utils'
 import { MessageTypeMap, MessageIconMap } from '@/types/message'
+import { mediaAPI } from '@/api/media'
 
 interface ForwardedDataItem {
   DataType: string
@@ -18,6 +19,9 @@ interface ForwardedDataItem {
   CDNDataURL?: string
   CDNThumbURL?: string
   FullMD5?: string
+  ThumbFullMD5?: string
+  DataSourcePath?: string
+  ThumbSourcePath?: string
   Link?: string
   Location?: {
     Label?: string
@@ -77,20 +81,31 @@ const getMessageIcon = (dataType: string): string => {
   return iconMap[dataType] || MessageIconMap[dataType] || 'QuestionFilled'
 }
 
-// 获取图片 URL（使用头像占位或实际图片）
+const getItemImageKey = (item: ForwardedDataItem): string => {
+  return item.FullMD5 || item.ThumbFullMD5 || ''
+}
+
+// 获取图片 URL（优先走本地路径，点开时让服务端自动补全高清图）
 const getImageUrl = (item: ForwardedDataItem): string => {
+  if (item.DataSourcePath) {
+    return mediaAPI.getImageUrl(getItemImageKey(item), item.DataSourcePath)
+  }
   if (item.FullMD5) {
-    const apiBaseUrl = localStorage.getItem('apiBaseUrl') || 'http://127.0.0.1:5030'
-    return `${apiBaseUrl}/image/${item.FullMD5}`
+    return mediaAPI.getImageUrl(item.FullMD5)
   }
   return ''
 }
 
-// 获取缩略图 URL
+// 获取缩略图 URL（优先走缩略图路径，其次用原图基路径拼 _t.dat）
 const getThumbnailUrl = (item: ForwardedDataItem): string => {
+  if (item.ThumbSourcePath) {
+    return mediaAPI.getDataUrl(item.ThumbSourcePath)
+  }
+  if (item.DataSourcePath) {
+    return mediaAPI.getThumbnailUrl(getItemImageKey(item), item.DataSourcePath)
+  }
   if (item.FullMD5) {
-    const apiBaseUrl = localStorage.getItem('apiBaseUrl') || 'http://127.0.0.1:5030'
-    return `${apiBaseUrl}/image/${item.FullMD5}?thumbnail=true`
+    return mediaAPI.getThumbnailUrl(item.FullMD5)
   }
   return ''
 }

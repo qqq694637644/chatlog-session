@@ -13,6 +13,14 @@ class MediaAPI {
     return getApiBaseUrl()
   }
 
+  private normalizePath(path: string): string {
+    return path.replace(/\\/g, '/').replace(/^\/+/, '')
+  }
+
+  private getImageByPathUrl(path: string): string {
+    return `${this.baseURL}/image/${this.normalizePath(path)}`
+  }
+
   /**
    * 获取图片 URL
    * GET /image/:id
@@ -20,14 +28,17 @@ class MediaAPI {
    * @param id 图片 ID
    * @returns 图片 URL
    */
-  getImageUrl(id: string , path?: string): string {
-    if(id){
+  getImageUrl(id: string, path?: string): string {
+    // 对图片来说，path 比 md5 更可靠：
+    // 1. 服务端会按 _h.dat -> .dat -> _t.dat 自动补全
+    // 2. 某些消息里的 md5 不能直接映射到本地 hardlink 记录
+    if (path) {
+      return this.getImageByPathUrl(path)
+    }
+    if (id) {
       return `${this.baseURL}/image/${encodeURIComponent(id)}`
     }
-    if(path){
-      return this.getDataUrl(path)
-    }
-    return `${this.baseURL}/image/${encodeURIComponent(id)}`
+    return ''
   }
 
   /**
@@ -38,8 +49,8 @@ class MediaAPI {
    * @returns 缩略图 URL
    */
   getThumbnailUrl(id: string, path?: string): string {
-    if(path){
-      return this.getDataUrl(path) + '_t.dat'
+    if (path) {
+      return `${this.getDataUrl(path)}_t.dat`
     }
     return `${this.baseURL}/image/${encodeURIComponent(id)}?thumbnail=true`
   }
@@ -85,9 +96,7 @@ class MediaAPI {
    * @returns 数据文件 URL
    */
   getDataUrl(path: string): string {
-    //replace \\ to /
-    path = path.replace(/\\/g, '/')
-    return `${this.baseURL}/data/${path}`
+    return `${this.baseURL}/data/${this.normalizePath(path)}`
   }
 
   /**
