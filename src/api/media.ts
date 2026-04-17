@@ -21,6 +21,10 @@ class MediaAPI {
     return `${this.baseURL}/image/${this.normalizePath(path)}`
   }
 
+  private getImageByCandidatesUrl(id: string, path: string): string {
+    return `${this.baseURL}/image/${encodeURIComponent(id)},${this.normalizePath(path)}`
+  }
+
   /**
    * 获取图片 URL
    * GET /image/:id
@@ -29,9 +33,12 @@ class MediaAPI {
    * @returns 图片 URL
    */
   getImageUrl(id: string, path?: string): string {
-    // 对图片来说，path 比 md5 更可靠：
-    // 1. 服务端会按 _h.dat -> .dat -> _t.dat 自动补全
-    // 2. 某些消息里的 md5 不能直接映射到本地 hardlink 记录
+    // 大图场景要同时带上 md5 和 path：
+    // 1. 先让服务端用 md5 命中数据库里的原图/高清图
+    // 2. 若 md5 不可用，再回退到 path，让服务端按 _h.dat -> .dat -> _t.dat 自动补全
+    if (id && path) {
+      return this.getImageByCandidatesUrl(id, path)
+    }
     if (path) {
       return this.getImageByPathUrl(path)
     }
