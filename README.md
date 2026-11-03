@@ -217,3 +217,7 @@ Production uses a same-origin Node proxy with a server-only API key. See docs/SE
 ## Production deployment
 
 Production builds run on GitHub Actions runners, not on the 4 GB Windows server. Each push to main publishes a ZIP under the workflow run artifacts; pushing a v* tag also publishes the ZIP to GitHub Releases. On the server, extract the ZIP and run start.bat (Node only). See docs/SECURE_PROXY.md.
+
+## 迁移需求与实施记录
+
+完整的迁移背景、需求边界、API Key 授权流程、GitHub Actions 构建发布、4GB Windows 服务器部署和验收状态见 [MIGRATION_REQUIREMENTS.md](MIGRATION_REQUIREMENTS.md)。
