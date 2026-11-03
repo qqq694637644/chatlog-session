@@ -1,0 +1,104 @@
+name: Build and package
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and build on GitHub Runner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build production frontend
+        run: npm run build
+
+      - name: Assemble server deployment package
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_root="package/chatlog-session"
+          mkdir -p "$package_root/server" "$package_root/scripts" "$package_root/dist" "$package_root/docs"
+          cp -a dist/. "$package_root/dist/"
+          cp server.mjs "$package_root/server.mjs"
+          cp server/auth-proxy.mjs "$package_root/server/auth-proxy.mjs"
+          cp scripts/setup-auth.mjs "$package_root/scripts/setup-auth.mjs"
+          cp package.json "$package_root/package.json"
+          cp start.bat setup-auth.bat .env.server.example "$package_root/"
+          cp docs/SECURE_PROXY.md "$package_root/docs/SECURE_PROXY.md"
+          cat > "$package_root/DEPLOY.txt" <<'EOF'
+          Chatlog Session production package
+
+          1. Extract this folder on the web server.
+          2. Keep the existing .env.server file when upgrading.
+          3. On first install only, run setup-auth.bat and save the generated key in your local Chrome launcher BAT.
+          4. Run start.bat. It only starts Node; it does not build the frontend.
+          5. The Go Chatlog service must remain available at 127.0.0.1:5030.
+
+          Node.js 22 or later is recommended.
+          No npm install and no node_modules are required on the server.
+          See docs/SECURE_PROXY.md for details.
+          EOF
+          archive="chatlog-session-${GITHUB_SHA:0:7}.zip"
+          (cd package && zip -qr "$archive" chatlog-session)
+          sha256sum "package/$archive" > "package/$archive.sha256"
+          cat "package/$archive.sha256"
+
+      - name: Upload build artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatlog-session-${{ github.ref_name }}-${{ github.sha }}
+          path: |
+            package/chatlog-session-*.zip
+            package/chatlog-session-*.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download deployment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chatlog-session-${{ github.ref_name }}-${{ github.sha }}
+          path: release
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release/chatlog-session-*.zip
+            release/chatlog-session-*.zip.sha256
+          fail_on_unmatched_files: true

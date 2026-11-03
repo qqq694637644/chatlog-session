@@ -1,40 +1,39 @@
-﻿# Chatlog Session: server-side API key proxy
+# Chatlog Session deployment
 
-The browser must not connect to the Go Chatlog service directly. Production uses this repository's small Node HTTP server as a same-origin gateway.
+## Architecture
 
-## Request flow
+The browser talks only to this web server. The Node server checks the HttpOnly API-key cookie and proxies the allowed read-only API/media routes to http://127.0.0.1:5030. The Go repository and SQLite access layer are unchanged.
 
-1. The Chrome launcher opens the site with a key in the URL fragment, for example #key=....
-2. The fragment is not sent in the initial HTTP request. The Vue entry point reads it, removes it from the address bar, and posts it once to /auth/bootstrap.
-3. The Node server compares the supplied key with CHATLOG_API_KEY from the server-only .env.server file. On success it sets a session-only HttpOnly; SameSite=Strict cookie named chatlog_api_key.
-4. Every /api/, /image/, /video/, /voice/, /file/ and /data/ request automatically carries that cookie. The Node server validates it before forwarding the request to http://127.0.0.1:5030.
-5. Only GET and HEAD are forwarded. MCP (/mcp, /sse, /message) is not exposed.
-6. Protected API and media responses are Cache-Control: no-store; the Service Worker does not cache them. Old API/media caches are removed when the new Service Worker activates.
+## Build on GitHub Actions
 
-The Go repository and SQLite access layer are unchanged. The Go service must continue listening on loopback at 127.0.0.1:5030.
+The workflow at .github/workflows/build.yml runs on GitHub-hosted Ubuntu runners:
 
-## First-time server setup
+- npm ci
+- npm test
+- npm run build
+- package the static dist output and the small Node gateway into a ZIP
 
-Run these commands in the chatlog-session directory on the machine that hosts both the web app and the local Go service:
+A push to main uploads a downloadable Actions artifact (kept for 30 days). Pushing a version tag such as v0.15.0 also publishes the ZIP and SHA-256 file to GitHub Releases. Pull requests run tests and the build but do not publish deployment packages.
 
-~~~powershell
-npm install
-npm run setup:auth
-~~~
+## Deploy on the 4 GB Windows server
 
-The setup command creates .env.server with a random 256-bit key. It refuses to overwrite an existing key unless --force is explicitly supplied. .env.server is ignored by Git and must never be committed.
+Do not build the Vue application on the server.
 
-Copy the printed key into the local Chrome launcher BAT. Then start the production web server:
+1. Open the repository's Actions page, open the latest successful Build and package run, and download its chatlog-session ZIP artifact. Alternatively, download the ZIP from Releases.
+2. Extract the ZIP. It contains the chatlog-session deployment folder.
+3. When upgrading an existing installation, keep the existing .env.server file. It contains the server API key and is intentionally not included in the ZIP.
+4. On first installation only, run setup-auth.bat. It creates .env.server and prints the random API key. Copy that key into the local Chrome launcher BAT.
+5. Run start.bat.
 
-~~~bat
-start.bat
-~~~
+start.bat only executes node server.mjs. It does not run npm install, npm run build, Vite, vue-tsc or esbuild. The deployment ZIP contains the prebuilt frontend, Node server and key setup script; node_modules is not required on the server.
 
-start.bat builds the Vue app and starts server.mjs on port 5173. The Node server binds to 0.0.0.0:5173 and forwards protected data routes to 127.0.0.1:5030.
+Node.js 22 or later is recommended. The Go Chatlog service must continue listening on 127.0.0.1:5030.
 
-## Local Chrome launcher
+## API key and Chrome Incognito
 
-Copy open-chatlog.bat.example to a BAT file on the user's PC. Replace the placeholder with the key printed by npm run setup:auth.
+The API key is generated on the web server and stored only in .env.server. The setup script refuses to overwrite an existing key unless --force is explicitly supplied.
+
+Copy the printed key into the local launcher BAT:
 
 ~~~bat
 @echo off
@@ -44,18 +43,16 @@ start "" chrome.exe --incognito "http://YOUR_WEB_SERVER:5173/#key=%CHATLOG_API_K
 exit /b
 ~~~
 
-Double-click the BAT. The key is exchanged for an HttpOnly session cookie and immediately removed from the URL. Closing all Incognito windows clears the session cookie; the next launch bootstraps again.
+The Vue entry point reads the fragment, removes it from the address bar and exchanges it for an HttpOnly session cookie. Closing all Incognito windows clears the session cookie; double-clicking the BAT again starts a fresh session.
 
-If the web site is moved, update only the site URL in the local BAT. Do not put the Go API address or API key into frontend source, Vite variables, or Git.
+## HTTPS
 
-## HTTPS note
+The sample launcher uses HTTP. On HTTP, the bootstrap key and subsequent requests are not encrypted in transit. The cookie is still HttpOnly and SameSite=Strict, but the Secure attribute is only enabled when the web server is reached through HTTPS. For protection against network sniffing, put the Node web server behind HTTPS and pass X-Forwarded-Proto: https. Do not expose port 5030 publicly.
 
-The current example URL is HTTP. On HTTP, the cookie remains HttpOnly and SameSite=Strict but cannot use the Secure attribute, and the bootstrap/API key traffic is not encrypted. This protects against unauthenticated direct API requests but does not protect against network sniffing. For full transport security, put the Node web server behind HTTPS and pass X-Forwarded-Proto: https; the proxy will then add the Secure cookie attribute automatically. Do not expose port 5030 publicly.
+## Local development
 
-## Development
-
-npm run dev is intentionally bound to 127.0.0.1 and uses Vite's local proxy for development. It bypasses the production API-key gate because it is loopback-only. Do not change the Vite development host back to 0.0.0.0 and do not expose the Vite dev server to the Internet. Production must use start.bat / npm run start.
+npm run dev is intended for local development only and binds to 127.0.0.1. It uses Vite's local proxy and bypasses the production API-key gate. Do not expose the Vite development server to the Internet.
 
 ## Key rotation
 
-Run npm run setup:auth -- --force on the web host to generate a new key. Update the local Chrome launcher BAT to the newly printed key. Existing cookies become invalid immediately.
+To rotate the key, run node scripts/setup-auth.mjs --force, then update the local Chrome launcher BAT. Existing cookies become invalid immediately.
