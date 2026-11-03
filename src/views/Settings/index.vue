@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useNotificationStore } from '@/stores/notification'
@@ -14,7 +14,6 @@ const router = useRouter()
 // 设置选项
 const settings = ref({
   // API 设定
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5030',
   apiTimeout: 30000,
   apiRetryCount: 3,
   apiRetryDelay: 1000,
@@ -67,7 +66,7 @@ const activeMenu = ref('api')
 
 // 菜单项
 const menuItems = [
-  { key: 'api', label: 'API 设定', icon: 'Link' },
+  { key: 'api', label: '服务连接', icon: 'Link' },
   { key: 'appearance', label: '外观设置', icon: 'Brush' },
   { key: 'notifications', label: '通知设置', icon: 'Bell' },
   { key: 'chat', label: '聊天设置', icon: 'ChatDotRound' },
@@ -119,69 +118,40 @@ const retryCountOptions = [
   { label: '5 次', value: 5 }
 ]
 
-// 测试 API 连接
 const testingApi = ref(false)
 const testApiConnection = async () => {
-  if (!settings.value.apiBaseUrl) {
-    ElMessage.warning('请先输入 API 地址')
-    return
-  }
-
   testingApi.value = true
   try {
-    // 去除末尾的斜杠
-    const baseUrl = settings.value.apiBaseUrl.endsWith('/')
-      ? settings.value.apiBaseUrl.slice(0, -1)
-      : settings.value.apiBaseUrl
-
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000)
-
-    const response = await fetch(`${baseUrl}/api/v1/session?format=json`, {
+    const response = await fetch('/api/v1/session?format=json', {
       method: 'GET',
-      signal: controller.signal,
-      headers: {
-        'Accept': 'application/json'
-      }
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
     })
 
-    clearTimeout(timeoutId)
-
-    // 检查 HTTP 状态码必须是 200
+    if (response.status === 401) {
+      ElMessage.error('授权已失效，请重新通过桌面 BAT 打开网页')
+      return
+    }
     if (response.status !== 200) {
-      ElMessage.error(`API 连接失败: HTTP ${response.status} ${response.statusText}`)
-      testingApi.value = false
+      ElMessage.error('连接失败：HTTP ' + response.status)
       return
     }
 
-    // 尝试解析 JSON
-    try {
-      const data = await response.json()
-
-      // 检查是否是有效的响应数据
-      if (data && (Array.isArray(data) || typeof data === 'object')) {
-        ElMessage.success('API 连接成功，响应正常')
-      } else {
-        ElMessage.error('API 响应格式错误：数据格式不正确')
-      }
-    } catch (jsonError) {
-      ElMessage.error('API 响应格式错误：无法解析 JSON')
-    }
-
-    testingApi.value = false
-  } catch (error: any) {
-    testingApi.value = false
-    if (error.name === 'AbortError') {
-      ElMessage.error('API 连接超时')
+    const data = await response.json()
+    if (data && (Array.isArray(data) || typeof data === 'object')) {
+      ElMessage.success('安全代理连接正常')
     } else {
-      ElMessage.error(`API 连接失败: ${error.message}`)
+      ElMessage.error('服务响应格式不正确')
     }
+  } catch (error: any) {
+    ElMessage.error('连接失败：' + (error.message || '网络错误'))
+  } finally {
+    testingApi.value = false
   }
 }
-
 // 重置 API 设置
 const resetApiSettings = () => {
-  settings.value.apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5030'
   settings.value.apiTimeout = 30000
   settings.value.apiRetryCount = 3
   settings.value.apiRetryDelay = 1000
@@ -193,20 +163,10 @@ const resetApiSettings = () => {
 // 从 localStorage 加载配置
 const loadSettings = () => {
   try {
-    // 优先从独立的 apiBaseUrl key 加载（与 Onboarding 统一）
-    const directApiUrl = localStorage.getItem('apiBaseUrl')
-    if (directApiUrl) {
-      settings.value.apiBaseUrl = directApiUrl
-    }
-
+    localStorage.removeItem('apiBaseUrl')
     const savedSettings = localStorage.getItem('chatlog-settings')
     if (savedSettings) {
       const parsed = JSON.parse(savedSettings)
-
-      // apiBaseUrl 已从独立 key 加载，这里作为备份
-      if (!directApiUrl && parsed.apiBaseUrl !== undefined) {
-        settings.value.apiBaseUrl = parsed.apiBaseUrl
-      }
       if (parsed.apiTimeout !== undefined) settings.value.apiTimeout = parsed.apiTimeout
       if (parsed.apiRetryCount !== undefined) settings.value.apiRetryCount = parsed.apiRetryCount
       if (parsed.apiRetryDelay !== undefined) settings.value.apiRetryDelay = parsed.apiRetryDelay
@@ -345,14 +305,6 @@ const clearNotificationHistory = () => {
 
 // 保存设置
 const saveSettings = () => {
-  // 自动去除 apiBaseUrl 末尾的斜杠
-  if (settings.value.apiBaseUrl.endsWith('/')) {
-    settings.value.apiBaseUrl = settings.value.apiBaseUrl.slice(0, -1)
-  }
-
-  // 保存 apiBaseUrl 到独立的 key（与 Onboarding 统一）
-  localStorage.setItem('apiBaseUrl', settings.value.apiBaseUrl)
-
   // 保存其他设置到 chatlog-settings（包含 enableDebug）
   const settingsToSave = {
     ...settings.value,
@@ -392,7 +344,6 @@ const resetSettings = async () => {
 
     // 重置为默认值
     settings.value = {
-      apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5030',
       apiTimeout: 30000,
       apiRetryCount: 3,
       apiRetryDelay: 1000,
@@ -528,26 +479,30 @@ const restartOnboarding = async () => {
       <!-- 设置内容 -->
       <div class="settings-content">
         <el-scrollbar>
-          <!-- API 设定 -->
+          <!-- 服务连接 -->
           <div v-show="activeMenu === 'api'" class="setting-section">
             <div class="section-header">
-              <h3>API 设定</h3>
-              <p>配置 Chatlog API 连接</p>
+              <h3>安全连接</h3>
+              <p>所有数据请求均通过当前网站的授权代理访问</p>
             </div>
 
-            <el-form label-position="left" label-width="120px">
-              <el-form-item label="API 地址">
-                <el-input
-                  v-model="settings.apiBaseUrl"
-                  placeholder="http://localhost:8080"
-                  style="width: 400px"
-                >
-                  <template #prepend>
-                    <el-icon><Link /></el-icon>
-                  </template>
-                </el-input>
-              </el-form-item>
+            <el-alert
+              title="同源安全代理已启用"
+              type="success"
+              :closable="false"
+              show-icon
+              style="margin-bottom: 20px"
+            >
+              <template #default>
+                <div style="line-height: 1.8">
+                  <p>• 浏览器只访问当前网页，不直接连接 Chatlog 数据服务。</p>
+                  <p>• 服务端会验证每个数据请求携带的 HttpOnly API Key Cookie。</p>
+                  <p>• 图片、视频、语音和文件请求也经过相同的授权检查。</p>
+                </div>
+              </template>
+            </el-alert>
 
+            <el-form label-position="left" label-width="120px">
               <el-form-item label="连接测试">
                 <el-button
                   type="primary"
@@ -555,10 +510,10 @@ const restartOnboarding = async () => {
                   @click="testApiConnection"
                 >
                   <el-icon><Connection /></el-icon>
-                  测试连接
+                  测试安全连接
                 </el-button>
                 <el-text type="info" size="small" style="margin-left: 12px">
-                  点击测试 API 是否可访问
+                  验证授权和本机 Chatlog 服务是否正常
                 </el-text>
               </el-form-item>
 
@@ -617,26 +572,10 @@ const restartOnboarding = async () => {
               <el-form-item>
                 <el-button type="warning" @click="resetApiSettings">
                   <el-icon><RefreshRight /></el-icon>
-                  重置 API 设置
+                  重置连接设置
                 </el-button>
               </el-form-item>
             </el-form>
-
-            <el-alert
-              title="提示"
-              type="info"
-              :closable="false"
-              style="margin-top: 20px"
-            >
-              <template #default>
-                <div style="line-height: 1.8">
-                  <p>• API 地址格式: <code>http://host:port</code> 或 <code>https://domain.com</code></p>
-                  <p>• 默认地址: <code>http://localhost:8080</code></p>
-                  <p>• 修改设置后需要点击"保存设置"按钮才会生效</p>
-                  <p>• 建议先测试连接，确保 API 可访问</p>
-                </div>
-              </template>
-            </el-alert>
           </div>
 
           <!-- 外观设置 -->

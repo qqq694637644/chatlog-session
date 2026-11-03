@@ -1,11 +1,10 @@
-/* eslint-env serviceworker */
+﻿/* eslint-env serviceworker */
 
 // Chatlog Session - Service Worker
 // Version: 1.0.0
 
-const CACHE_VERSION = 'v1.0.0';
+const CACHE_VERSION = 'v2.0.0';
 const CACHE_NAME = `chatlog-session-${CACHE_VERSION}`;
-const API_CACHE_NAME = `chatlog-api-${CACHE_VERSION}`;
 const IMAGE_CACHE_NAME = `chatlog-images-${CACHE_VERSION}`;
 
 // 需要预缓存的静态资源
@@ -14,12 +13,6 @@ const STATIC_ASSETS = [
   '/index.html',
   '/manifest.json',
 ];
-
-// API 缓存配置
-const API_CACHE_CONFIG = {
-  maxAge: 5 * 60 * 1000, // 5分钟
-  maxEntries: 50,
-};
 
 // 图片缓存配置
 const IMAGE_CACHE_CONFIG = {
@@ -62,12 +55,7 @@ self.addEventListener('activate', (event) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             // 删除旧版本的缓存
-            if (
-              cacheName.startsWith('chatlog-') &&
-              cacheName !== CACHE_NAME &&
-              cacheName !== API_CACHE_NAME &&
-              cacheName !== IMAGE_CACHE_NAME
-            ) {
+            if (cacheName.startsWith('chatlog-') && cacheName !== CACHE_NAME && cacheName !== IMAGE_CACHE_NAME) {
               console.log('[SW] Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
@@ -89,8 +77,13 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // 只处理同源或 API 请求
-  if (url.origin === location.origin || isApiRequest(url)) {
+  // Chatlog 数据和媒体始终走网络，不从 Service Worker 缓存返回。
+  if (url.origin === location.origin && isProtectedDataRequest(url)) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  if (url.origin === location.origin) {
     event.respondWith(handleFetch(request, url));
   }
 });
@@ -99,6 +92,11 @@ self.addEventListener('fetch', (event) => {
 // 处理 Fetch 请求
 // ============================================================================
 async function handleFetch(request, url) {
+  // 敏感数据：Network Only。
+  if (isProtectedDataRequest(url)) {
+    return fetch(request);
+  }
+
   // 1. 静态资源：Cache First
   if (isStaticAsset(url)) {
     return cacheFirst(request, CACHE_NAME);
@@ -108,13 +106,7 @@ async function handleFetch(request, url) {
   if (isImageRequest(url)) {
     return cacheFirstWithExpiry(request, IMAGE_CACHE_NAME, IMAGE_CACHE_CONFIG);
   }
-
-  // 3. API 请求：Network First with Cache Fallback
-  if (isApiRequest(url)) {
-    return networkFirstWithCache(request, API_CACHE_NAME, API_CACHE_CONFIG);
-  }
-
-  // 4. HTML 页面：Network First
+// 4. HTML 页面：Network First
   if (request.mode === 'navigate') {
     return networkFirst(request, CACHE_NAME);
   }
@@ -292,11 +284,9 @@ function isImageRequest(url) {
   return imageExtensions.some(ext => url.pathname.toLowerCase().endsWith(ext));
 }
 
-function isApiRequest(url) {
-  // 根据你的 API 地址调整
-  return url.pathname.startsWith('/api/') || 
-         url.hostname.includes('your-api-domain.com') ||
-         url.port === '5030'; // 假设 API 运行在 5030 端口
+function isProtectedDataRequest(url) {
+  const protectedPrefixes = ['/api/', '/image/', '/video/', '/voice/', '/file/', '/data/'];
+  return protectedPrefixes.some(prefix => url.pathname.startsWith(prefix));
 }
 
 // ============================================================================

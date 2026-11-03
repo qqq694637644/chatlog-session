@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 路由配置
  */
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
@@ -12,15 +12,7 @@ const routes: RouteRecordRaw[] = [
     name: 'Home',
     component: () => import('@/views/index.vue'),
   },
-  {
-    path: '/onboarding',
-    name: 'Onboarding',
-    component: () => import('@/views/Onboarding/index.vue'),
-    meta: {
-      title: '欢迎使用',
-      requiresAuth: false,
-    },
-  },
+  { path: '/onboarding', name: 'Onboarding', redirect: '/' },
   {
     path: '/chat',
     name: 'Chat',
@@ -84,35 +76,8 @@ router.beforeEach((to, _from, next) => {
     document.title = 'Chatlog Session'
   }
 
-  // 1. 检查是否已有配置，如果没有，直接写入默认值
-  if (!localStorage.getItem('apiBaseUrl')) {
-    localStorage.setItem('apiBaseUrl', 'http://REMOVED_BACKEND_IP:5030') // 这里写死你的API地址
-  }
-  if (!localStorage.getItem('onboardingCompleted')) {
-    localStorage.setItem('onboardingCompleted', 'true')
-  }
-
-  // 2. 如果用户试图访问 /onboarding，强制重定向到首页
-  if (to.path === '/onboarding') {
-    next('/')
-    return
-  }
-
-  // // 检查是否需要显示 Onboarding
-  // const onboardingCompleted = localStorage.getItem('onboardingCompleted')
-  // const apiBaseUrl = localStorage.getItem('apiBaseUrl')
-
-  // // 如果未完成引导且不在引导页面，重定向到引导页
-  // if (!onboardingCompleted && !apiBaseUrl && to.path !== '/onboarding') {
-  //   next('/onboarding')
-  //   return
-  // }
-
-  // // 如果已完成引导但访问引导页，重定向到首页
-  // if (onboardingCompleted && apiBaseUrl && to.path === '/onboarding') {
-  //   next('/')
-  //   return
-  // }
+  // API 地址由当前网站的同源服务端代理统一管理。
+  localStorage.removeItem('apiBaseUrl')
 
   next()
 })

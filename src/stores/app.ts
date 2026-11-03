@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 应用全局状态管理
  */
 import { defineStore } from 'pinia'
@@ -30,7 +30,6 @@ export const useAppStore = defineStore('app', () => {
   const config = ref<AppConfig>({
     title: import.meta.env.VITE_APP_TITLE || 'Chatlog Session',
     version: import.meta.env.VITE_APP_VERSION || 'dev',
-    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5030',
     apiTimeout: Number(import.meta.env.VITE_API_TIMEOUT) || 30000,
     pageSize: Number(import.meta.env.VITE_PAGE_SIZE) || 500,
     maxPageSize: Number(import.meta.env.VITE_MAX_PAGE_SIZE) || 5000,

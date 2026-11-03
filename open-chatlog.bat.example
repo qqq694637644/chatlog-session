@@ -1,0 +1,5 @@
+﻿@echo off
+setlocal
+set "CHATLOG_API_KEY=PASTE_THE_KEY_FROM_SETUP_AUTH_HERE"
+start "" chrome.exe --incognito "http://YOUR_WEB_SERVER:5173/#key=%CHATLOG_API_KEY%"
+exit /b

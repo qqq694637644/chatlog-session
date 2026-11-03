@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 类型定义导出入口
  */
 
@@ -18,7 +18,6 @@ export * from './contact'
 export interface AppConfig {
   title: string
   version: string
-  apiBaseUrl: string
   apiTimeout: number
   pageSize: number
   maxPageSize: number

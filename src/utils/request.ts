@@ -32,25 +32,10 @@ const getSettings = () => {
 }
 
 /**
- * 获取 API Base URL
- * 优先从独立的 apiBaseUrl key 读取，其次从 settings 读取
+ * API 统一通过当前网页的同源服务端代理访问。
+ * 空 baseURL 表示使用当前页面 origin，不在浏览器暴露 Go 服务地址。
  */
-export const getApiBaseUrl = (): string => {
-  // 优先使用独立的 apiBaseUrl
-  const directUrl = localStorage.getItem('apiBaseUrl')
-  if (directUrl) {
-    return directUrl
-  }
-  
-  // 其次从 settings 读取
-  const settings = getSettings()
-  if (settings.apiBaseUrl) {
-    return settings.apiBaseUrl
-  }
-  
-  // 最后使用环境变量或默认值
-  return import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5030'
-}
+export const getApiBaseUrl = (): string => ''
 
 /**
  * 获取动态配置
@@ -60,6 +45,7 @@ const getDynamicConfig = (): AxiosRequestConfig => {
   
   return {
     baseURL: getApiBaseUrl(),
+    withCredentials: true,
     timeout: settings.apiTimeout || Number(import.meta.env.VITE_API_TIMEOUT) || 30000,
     headers: {
       'Content-Type': 'application/json',
@@ -87,16 +73,11 @@ service.interceptors.request.use(
       config.metadata = {}
     }
     config.metadata.startTime = Date.now()
+    config.withCredentials = true
     
     // 初始化重试计数
     if (config.metadata.retryCount === undefined) {
       config.metadata.retryCount = 0
-    }
-    
-    // 动态更新 baseURL 和 timeout
-    const apiBaseUrl = getApiBaseUrl()
-    if (apiBaseUrl) {
-      config.baseURL = apiBaseUrl
     }
     
     const settings = getSettings()
@@ -122,12 +103,6 @@ service.interceptors.request.use(
         ...config.params,
         format: 'json',
       }
-    }
-
-    // 添加 token（如果需要）
-    const token = localStorage.getItem('token')
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`
     }
 
     // 开发环境日志或用户开启了 API 调试

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -274,7 +274,7 @@ defineExpose({
         </template>
         <div v-if="!sessionStore.searchKeyword" class="empty-tip">
           <p>请确保 Chatlog API 服务正在运行</p>
-          <p class="text-secondary">默认地址: http://127.0.0.1:5030</p>
+          <p class="text-secondary">请确认网页服务端已连接本机 Chatlog 数据服务</p>
         </div>
       </el-empty>
     </div>

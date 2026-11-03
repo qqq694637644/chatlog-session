@@ -1,6 +1,7 @@
-import { computed } from 'vue'
+﻿import { computed } from 'vue'
 import type { Message } from '@/types'
 import { mediaAPI } from '@/api/media'
+import { normalizeChatlogMediaUrl } from '@/utils/mediaUrl'
 
 const PROXY_BASE = 'https://spmc.sponeur.com/proxy'
 const ALLOWED_DOMAINS = [
@@ -27,7 +28,7 @@ export function useMessageUrl(message: Message) {
   //图片缩略图 URL
   const imageThumbUrl = computed(() => {
     if (message.content) {
-      return message.content
+      return normalizeChatlogMediaUrl(message.content)
     }
 
     if (message.contents?.md5) {
@@ -38,7 +39,7 @@ export function useMessageUrl(message: Message) {
   // 图片 URL
   const imageUrl = computed(() => {
     if (message.content) {
-      return message.content
+      return normalizeChatlogMediaUrl(message.content)
     }
     if (message.contents?.md5) {
       return mediaAPI.getImageUrl(message.contents.md5, message.contents.path)
@@ -49,7 +50,7 @@ export function useMessageUrl(message: Message) {
   // 视频 URL
   const videoUrl = computed(() => {
     if (message.content) {
-      return message.content
+      return normalizeChatlogMediaUrl(message.content)
     }
     if (message.contents?.md5) {
       return mediaAPI.getVideoUrl(message.contents.md5)
@@ -64,7 +65,7 @@ export function useMessageUrl(message: Message) {
       return convertToProxyUrl(message.contents.cdnurl)
     }
     if (message.content) {
-      return message.content
+      return normalizeChatlogMediaUrl(message.content)
     }
     if (message.contents?.md5) {
       return mediaAPI.getImageUrl(message.contents.md5, message.contents.path)
@@ -75,7 +76,7 @@ export function useMessageUrl(message: Message) {
   // 语音 URL
   const voiceUrl = computed(() => {
     if (message.content) {
-      return message.content
+      return normalizeChatlogMediaUrl(message.content)
     }
     if (message.contents?.voice) {
       return mediaAPI.getVoiceUrl(message.contents.voice)
@@ -86,7 +87,7 @@ export function useMessageUrl(message: Message) {
   // 文件 URL
   const fileUrl = computed(() => {
     if (message.content) {
-      return message.content
+      return normalizeChatlogMediaUrl(message.content)
     }
     if (message.contents?.md5) {
       return mediaAPI.getFileUrl(message.contents.md5)

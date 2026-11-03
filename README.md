@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 <img src="public/icons/apple-icon-180.png" alt="Chatlog Session Logo" width="120" height="120" style="border-radius: 20px; margin-bottom: 20px;">
 
@@ -207,3 +207,8 @@ npm run dev
 [⬆ 返回顶部](#chatlog-session)
 
 </div>
+
+
+## Secure personal deployment
+
+Production uses a same-origin Node proxy with a server-only API key. See docs/SECURE_PROXY.md for one-time key setup, the Chrome Incognito launcher, and deployment instructions. The Go Chatlog service remains local on 127.0.0.1:5030 and is not changed.

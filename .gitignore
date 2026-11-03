@@ -1,4 +1,4 @@
-# Logs
+﻿# Logs
 logs
 *.log
 npm-debug.log*
@@ -56,3 +56,5 @@ coverage
 *.swp
 *.swo
 *~
+# Server-only Chatlog API key (never commit)
+.env.server

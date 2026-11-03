@@ -1,16 +1,17 @@
-/**
+﻿/**
  * 多媒体资源 API
  * 对应后端多媒体路由相关接口
  */
 
-import { request, getApiBaseUrl } from '@/utils/request'
+import { request } from '@/utils/request'
+import { normalizeChatlogMediaUrl } from '@/utils/mediaUrl'
 
 /**
  * 多媒体 API 类
  */
 class MediaAPI {
   private get baseURL(): string {
-    return getApiBaseUrl()
+    return ''
   }
 
   private normalizePath(path: string): string {
@@ -119,7 +120,7 @@ class MediaAPI {
 
     // 如果是完整 URL，直接返回
     if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) {
-      return avatarPath
+      return normalizeChatlogMediaUrl(avatarPath)
     }
 
     // 如果是相对路径，拼接为完整 URL

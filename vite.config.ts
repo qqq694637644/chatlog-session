@@ -1,4 +1,4 @@
-import { fileURLToPath, URL } from 'node:url'
+﻿import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
@@ -8,7 +8,7 @@ import versionPlugin from './vite-plugin-version'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: process.env.VITE_BASE_PATH || './',
+  base: process.env.VITE_BASE_PATH || '/',
   plugins: [
     versionPlugin(),
     vue(),
@@ -40,7 +40,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    host: true,
+    host: '127.0.0.1',
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:5030',
@@ -67,6 +67,9 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+  },
+  preview: {
+    host: '127.0.0.1',
   },
   build: {
     target: 'es2015',
